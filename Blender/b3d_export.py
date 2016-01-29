@@ -3,20 +3,21 @@
 
 """
 Name: 'B3D Exporter (.b3d)...'
-Blender: 248a
+Blender: 248.1
 Group: 'Export'
 Tooltip: 'Export to Blitz3D file format (.b3d)'
 """
 __author__ = ["Diego Parisi"]
 __url__ = ["www.diegoparisi.com"]
-__version__ = "2.06"
+__version__ = "2.07"
 __bpydoc__ = """\
 """
 
-# Blender-Blitz3D Exporter 2.06
+# Blender-Blitz3D Exporter 2.07:
 # Copyright 2009 Diego Parisi  -  www.diegoparisi.com
 #
 # Lightmap issue fixed by Capricorn 76 Pty. Ltd. - www.capricorn76.com
+# Objects parameter added by SuperTuxKart Team - www.supertuxkart.sourceforge.net
 #
 # LICENSE:
 # This program is free software; you can redistribute it and/or modify
@@ -82,14 +83,24 @@ def write_chunk(name,value):
     return name + write_int(len(value)) + value
 
 #Write B3D File
-def write_b3d_file(filename):
+def write_b3d_file(filename, objects=[]):
+    global flag_stack, sets_stack, texs_stack
+    global brus_stack, mesh_stack, bone_stack, keys_stack
+
+    #Global Stacks
+    sets_stack = []
+    texs_stack = []
+    brus_stack = []
+    mesh_stack = []
+    bone_stack = []
+    keys_stack = []
     file_buf = ""
     temp_buf = ""
 
     temp_buf += write_int(1) #Version
-    temp_buf += write_texs() #TEXS
-    temp_buf += write_brus() #BRUS
-    temp_buf += write_node() #NODE
+    temp_buf += write_texs(objects) #TEXS
+    temp_buf += write_brus(objects) #BRUS
+    temp_buf += write_node(objects) #NODE
 
     if len(temp_buf) > 0:
         file_buf += write_chunk("BB3D",temp_buf)
@@ -100,17 +111,20 @@ def write_b3d_file(filename):
     file.close()
 
 #Write TEXS Chunk
-def write_texs():
+def write_texs(objects=[]):
     texs_buf = ""
     temp_buf = ""
     layer_max = 0
     obj_count = 0
     set_wrote = 0
 
-    if flag_stack[1]:
-        exp_obj = Blender.Object.GetSelected()
+    if objects:
+        exp_obj = objects
     else:
-        exp_obj = Blender.Object.Get()
+        if flag_stack[1]:
+            exp_obj = Blender.Object.GetSelected()
+        else:
+            exp_obj = Blender.Object.Get()
 
     for obj in exp_obj:
         if obj.type == "Mesh":
@@ -180,16 +194,19 @@ def write_texs():
     return texs_buf
 
 #Write BRUS Chunk
-def write_brus():
+def write_brus(objects=[]):
     brus_buf = ""
     temp_buf = ""
     mat_count = 0
     obj_count = 0
 
-    if flag_stack[1]:
-        exp_obj = Blender.Object.GetSelected()
+    if objects:
+        exp_obj = objects
     else:
-        exp_obj = Blender.Object.Get()
+        if flag_stack[1]:
+            exp_obj = Blender.Object.GetSelected()
+        else:
+            exp_obj = Blender.Object.Get()
 
     for obj in exp_obj:
         if obj.type == "Mesh":
@@ -289,7 +306,7 @@ def write_brus():
     return brus_buf
 
 #Write NODE Chunk
-def write_node():
+def write_node(objects=[]):
     global bone_stack
     global keys_stack
     root_buf = ""
@@ -310,10 +327,13 @@ def write_node():
     last_frame = Blender.Draw.Create(exp_con.endFrame())
     num_frames = last_frame.val - first_frame.val
 
-    if flag_stack[1]:
-        exp_obj = Blender.Object.GetSelected()
+    if objects:
+        exp_obj = objects
     else:
-        exp_obj = Blender.Object.Get()
+        if flag_stack[1]:
+            exp_obj = Blender.Object.GetSelected()
+        else:
+            exp_obj = Blender.Object.Get()
 
     for obj in exp_obj:
         if obj.type == "Mesh":
@@ -1004,7 +1024,7 @@ def draw_gui():
 
     glColor3f(255.0/255.0,238.0/255.0,0.0/255.0)
     glRasterPos2i(70,300)
-    Draw.Text("Blitz3D Exporter 2.06",'large')
+    Draw.Text("Blitz3D Exporter 2.07",'large')
 
     Blender.Draw.Toggle("All Objects",EVENT_ALL,40,13*button_height,button_width,button_height,flag_stack[0],"Export All Scene Objects")
     Blender.Draw.Toggle("Selected Only",EVENT_SEL,40,12*button_height,button_width,button_height,flag_stack[1],"Export Only Selected Objects")
@@ -1021,8 +1041,6 @@ def draw_gui():
     Draw.Text("Copyright 2009 Diego Parisi",'small')
     glRasterPos2i(105,37)
     Draw.Text("www.diegoparisi.com",'small')
-
-Blender.Draw.Register(draw_gui,handle_event,handle_button)
 
 #Callback Functions
 def savefile_callback(filename):
@@ -1052,13 +1070,12 @@ def export_b3d():
     flag_stack.append(0) #Vertex Colors
     flag_stack.append(0) #Cameras
     flag_stack.append(0) #Lights
-
     draw_gui()
 
 #Main
 def main():
-
     export_b3d()
 
 if __name__ == "__main__":
+    Blender.Draw.Register(draw_gui,handle_event,handle_button)
     main()
